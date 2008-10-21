@@ -18,7 +18,7 @@ print_r ($people);
 */
 
 
-# Version 1.0.0
+# Version 1.0.1
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -39,7 +39,7 @@ class camUniData
 	
 	
 	# Function to get user details
-	function getLookupData ($crsids, $dumpData = false)
+	function getLookupData ($crsids = false, $dumpData = false, $institution = false, $fields = array ('uid', 'cn', 'displayname', 'labeleduri', 'mail', 'sn', 'telephonenumber', 'title', 'dn', 'ou'))
 	{
 		# Ensure the LDAP functionality exists in PHP
 		if (!function_exists ('ldap_connect')) {
@@ -55,17 +55,24 @@ class camUniData
 		$r = ldap_bind ($ds);    // this is an "anonymous" bind, typically read-only access
 		
 		# Define the search string, imploding an array if in array format
-		$searchString = (!is_array ($crsids) ? "uid={$crsids}" : '(|(uid=' . implode (')(uid=', $crsids) . '))');
+		if ($crsids) {
+			$searchString = (!is_array ($crsids) ? "uid={$crsids}" : '(|(uid=' . implode (')(uid=', $crsids) . '))');
+		} else if ($institution) {
+			$searchString = "(&(instID={$institution})(objectClass=camAcUkPerson))";
+		}
+		
+		# End if no search string
+		if (!isSet ($searchString)) {return false;}
 		
 		# Obtain the data
-		$sr = ldap_search ($ds, 'ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk', $searchString);  
+		$sr = ldap_search ($ds, 'ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk', $searchString, $fields);  
 		$data = ldap_get_entries ($ds, $sr);
 		
 		# Close the connection
 		ldap_close ($ds);
 		
 		# End by returning false if no info or if the number of results is greater than the number supplied
-		if (!$data || !$data['count'] || ($data['count'] > count ($crsids))) {
+		if (!$data || !$data['count'] || ($crsids && ($data['count'] > count ($crsids)))) {
 			return false;
 		}
 		
@@ -92,11 +99,29 @@ class camUniData
 				'college' => ((isSet ($person['ou']) && isSet ($person['ou'][1])) ? $person['ou'][1] : false),
 				'title' => (isSet ($person['title']) ? $person['title'][0] : false),
 				'website' => (isSet ($person['labeleduri']) ? $person['labeleduri'][0] : false),
+				
+				'username' => $crsid,
+				'surname' => (isSet ($person['sn']) ? $person['sn'][0] : false),
+				'telephone' => (isSet ($person['telephonenumber']) ? $person['telephonenumber'][0] : false),
+				// 'dn' => (isSet ($person['dn']) ? $person['dn'][0] : false),
 			);
+			
+			# Trim
+			foreach ($people[$crsid] as $key => $value) {
+				$people[$crsid][$key] = trim ($value);
+			}
+			
+			# Compute the forename
+			if ($people[$crsid]['name'] && $people[$crsid]['surname']) {
+				$people[$crsid]['forename'] = trim (ereg_replace ($people[$crsid]['surname'] . '$', '', $people[$crsid]['name']));
+			}
 		}
 		
+		# Sort the list
+		ksort ($people);
+		
 		# Return the data, in the same format as supplied, i.e. string/array
-		return (!is_array ($crsids) ? $people[$crsids] : $people);
+		return (($crsids && !is_array ($crsids)) ? $people[$crsids] : $people);
 	}
 }
 
