@@ -18,7 +18,20 @@ print_r ($people);
 */
 
 
-# Version 1.0.1
+/*
+	# Note for future
+	# If adding a regexp for matching a Cambridge University e-mail, bear in mind that the following formats listed below are also supported.
+	# See e-mail from Tony Finch <fanf2> dated Wed, 22 Jul 2009 20:26:37 +0100, Message-ID: <alpine.LSU.2.00.0907222009070.17246@hermes-2.csi.cam.ac.uk> describing this
+	crsid+detail@cam.ac.uk
+	crsid--detail@cam.ac.uk
+	crsid+detail@ucs.cam.ac.uk
+	crsid--detail@ucs.cam.ac.uk
+	forename.surname+detail@ucs.cam.ac.uk
+	forename.surname--detail@ucs.cam.ac.uk
+*/
+
+
+# Version 1.0.2
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
