@@ -31,7 +31,7 @@ print_r ($people);
 */
 
 
-# Version 1.0.2
+# Version 1.0.3
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -44,7 +44,7 @@ class camUniData
 		
 		# Define the regexp - as defined by Tony Finch in Message-ID: <cEj*NC0dr@news.chiark.greenend.org.uk> to ucam.comp.misc on 060412
 		# NB: ^([a-z]{2,5})([1-9])([0-9]{0,4})$ doesn't deal with the few people with simply four letter CRSIDs
-		$regexp = '^[a-z][a-z0-9]{1,7}$';
+		$regexp = '^[' . $letters . '][' . $letters . '0-9]{1,7}$';
 		
 		# Return the result as a boolean
 		return (ereg ($regexp, $crsid));
@@ -66,6 +66,15 @@ class camUniData
 		
 		# Bind the connection
 		$r = ldap_bind ($ds);    // this is an "anonymous" bind, typically read-only access
+		
+		# Ensure all are lower-cased
+		if (is_array ($crsids)) {
+			foreach ($crsids as $key => $crsid) {
+				$crsids[$key] = strtolower ($crsid);
+			}
+		} else {
+			$crsids = strtolower ($crsids);
+		}
 		
 		# Define the search string, imploding an array if in array format
 		if ($crsids) {
