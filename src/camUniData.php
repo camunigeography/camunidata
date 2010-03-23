@@ -31,7 +31,7 @@ print_r ($people);
 */
 
 
-# Version 1.0.3
+# Version 1.1.0
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -44,10 +44,10 @@ class camUniData
 		
 		# Define the regexp - as defined by Tony Finch in Message-ID: <cEj*NC0dr@news.chiark.greenend.org.uk> to ucam.comp.misc on 060412
 		# NB: ^([a-z]{2,5})([1-9])([0-9]{0,4})$ doesn't deal with the few people with simply four letter CRSIDs
-		$regexp = '^[' . $letters . '][' . $letters . '0-9]{1,7}$';
+		$regexp = '/^[' . $letters . '][' . $letters . '0-9]{1,7}$/';
 		
 		# Return the result as a boolean
-		return (ereg ($regexp, $crsid));
+		return (preg_match ($regexp, $crsid));
 	}
 	
 	
@@ -133,9 +133,10 @@ class camUniData
 				$people[$crsid][$key] = trim ($value);
 			}
 			
-			# Compute the forename
+			# Compute the forename by chopping off the surname
 			if ($people[$crsid]['name'] && $people[$crsid]['surname']) {
-				$people[$crsid]['forename'] = trim (ereg_replace ($people[$crsid]['surname'] . '$', '', $people[$crsid]['name']));
+				$delimiter = '/';
+				$people[$crsid]['forename'] = trim (preg_replace ($delimiter . preg_quote ($people[$crsid]['surname'], $delimiter) . '$' . $delimiter, '', $people[$crsid]['name']));
 			}
 		}
 		
