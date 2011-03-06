@@ -31,7 +31,7 @@ print_r ($people);
 */
 
 
-# Version 1.1.0
+# Version 1.1.1
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -39,15 +39,26 @@ class camUniData
 	# Function to check a valid CRSID - checks syntax ONLY, not whether the CRSID is active or exists
 	function validCrsid ($crsid, $mustBeLowerCase = false)
 	{
+		# Get the regexp
+		$regexp = self::crsidRegexp ($mustBeLowerCase);
+		
+		# Return the result as a boolean
+		return (preg_match ('/' . $regexp . '/', $crsid));
+	}
+	
+	
+	# Function to return the regexp for a CRSID
+	function crsidRegexp ($mustBeLowerCase = false)
+	{
 		# Define the letter part
 		$letters = ($mustBeLowerCase ? 'a-z' : 'a-zA-Z');
 		
 		# Define the regexp - as defined by Tony Finch in Message-ID: <cEj*NC0dr@news.chiark.greenend.org.uk> to ucam.comp.misc on 060412
 		# NB: ^([a-z]{2,5})([1-9])([0-9]{0,4})$ doesn't deal with the few people with simply four letter CRSIDs
-		$regexp = '/^[' . $letters . '][' . $letters . '0-9]{1,7}$/';
+		$regexp = '^[' . $letters . '][' . $letters . '0-9]{1,7}$';
 		
-		# Return the result as a boolean
-		return (preg_match ($regexp, $crsid));
+		# Return the regexp
+		return $regexp;
 	}
 	
 	
