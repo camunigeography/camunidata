@@ -31,7 +31,7 @@ print_r ($people);
 */
 
 
-# Version 1.1.1
+# Version 1.1.2
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -156,6 +156,53 @@ class camUniData
 		
 		# Return the data, in the same format as supplied, i.e. string/array
 		return (($crsids && !is_array ($crsids)) ? $people[$crsids] : $people);
+	}
+	
+	
+	# Function to get a user list formatted for search-as-you-type from lookup; see: http://www.ucs.cam.ac.uk/lookup/ws and the 'search' method at http://www.lookup.cam.ac.uk/doc/ws-javadocs/uk/ac/cam/ucs/ibis/methods/PersonMethods.html
+	public function lookupUsers ($term, $autocompleteFormat = false)
+	{
+		# Define the URL format, with %s placeholder
+		$urlFormat = 'https://anonymous:@www.lookup.cam.ac.uk/api/v1/person/search?attributes=displayName,registeredName,surname&limit=10&orderBy=identifier&format=json&query=%s';
+		$url = sprintf ($urlFormat, $term);
+		
+		# Get the data
+		if (!$json = file_get_contents ($url)) {return array ();}
+		
+		# Decode the JSON
+		$json = json_decode ($json, true);
+		
+		# Find the results
+		if (!isSet ($json['result']) || !array_key_exists ('people', $json['result'])) {return array ();}		// Should only happen if the format has changed - an empty result will still have this structure
+		$people = $json['result']['people'];
+		
+		# End if none
+		if (!$people) {return array ();}
+		
+		# Arrange as array(username=>name,...)
+		$data = array ();
+		foreach ($people as $person) {
+			$key = $person['identifier']['value'];
+			$value = $key . ' (' . $person['visibleName'] . ')';
+			$data[$key] = $value;
+		}
+		
+		# For autocomplete format, arrange the data; see http://af-design.com/blog/2010/05/12/using-jquery-uis-autocomplete-to-populate-a-form/ which documents this
+		if ($autocompleteFormat) {
+			$dataAutocompleteFormat = array ();
+			$isTokenisedFormat = ($autocompleteFormat === 'tokenised');	// Older format
+			foreach ($data as $value => $label) {
+				if ($isTokenisedFormat) {	// Older format
+					$dataAutocompleteFormat[] = array ('id' => $value, 'name' => $value);	// q=searchterm&tokenised=true
+				} else {
+					$dataAutocompleteFormat[] = array ('value' => $value, 'label' => $label);	// term=searchterm
+				}
+			}
+			$data = $dataAutocompleteFormat;
+		}
+		
+		# Return the data
+		return $data;
 	}
 }
 
