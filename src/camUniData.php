@@ -31,7 +31,7 @@ print_r ($people);
 */
 
 
-# Version 1.1.2
+# Version 1.1.3
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -160,7 +160,7 @@ class camUniData
 	
 	
 	# Function to get a user list formatted for search-as-you-type from lookup; see: http://www.ucs.cam.ac.uk/lookup/ws and the 'search' method at http://www.lookup.cam.ac.uk/doc/ws-javadocs/uk/ac/cam/ucs/ibis/methods/PersonMethods.html
-	public function lookupUsers ($term, $autocompleteFormat = false)
+	public function lookupUsers ($term, $autocompleteFormat = false, $indexByUsername = false)
 	{
 		# Define the URL format, with %s placeholder
 		$urlFormat = 'https://anonymous:@www.lookup.cam.ac.uk/api/v1/person/search?attributes=displayName,registeredName,surname&limit=10&orderBy=identifier&format=json&query=%s';
@@ -193,12 +193,17 @@ class camUniData
 			$isTokenisedFormat = ($autocompleteFormat === 'tokenised');	// Older format
 			foreach ($data as $value => $label) {
 				if ($isTokenisedFormat) {	// Older format
-					$dataAutocompleteFormat[] = array ('id' => $value, 'name' => $value);	// q=searchterm&tokenised=true
+					$dataAutocompleteFormat[$value] = array ('id' => $value, 'name' => $value);	// q=searchterm&tokenised=true
 				} else {
-					$dataAutocompleteFormat[] = array ('value' => $value, 'label' => $label);	// term=searchterm
+					$dataAutocompleteFormat[$value] = array ('label' => $label, 'value' => $value);	// term=searchterm
 				}
 			}
 			$data = $dataAutocompleteFormat;
+		}
+		
+		# Strip keys if required
+		if (!$indexByUsername) {
+			$data = array_values ($data);
 		}
 		
 		# Return the data
