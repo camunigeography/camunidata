@@ -31,13 +31,13 @@ print_r ($people);
 */
 
 
-# Version 1.1.3
+# Version 1.2.0
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
 {
 	# Function to check a valid CRSID - checks syntax ONLY, not whether the CRSID is active or exists
-	function validCrsid ($crsid, $mustBeLowerCase = false)
+	public static function validCrsid ($crsid, $mustBeLowerCase = false)
 	{
 		# Get the regexp
 		$regexp = self::crsidRegexp ($mustBeLowerCase);
@@ -48,7 +48,7 @@ class camUniData
 	
 	
 	# Function to return the regexp for a CRSID
-	function crsidRegexp ($mustBeLowerCase = false)
+	public static function crsidRegexp ($mustBeLowerCase = false)
 	{
 		# Define the letter part
 		$letters = ($mustBeLowerCase ? 'a-z' : 'a-zA-Z');
@@ -63,7 +63,7 @@ class camUniData
 	
 	
 	# Function to get user details
-	function getLookupData ($crsids = false, $dumpData = false, $institution = false, $fields = array ('uid', 'cn', 'displayname', 'labeleduri', 'mail', 'sn', 'telephonenumber', 'title', 'dn', 'ou'))
+	public static function getLookupData ($crsids = false, $dumpData = false, $institution = false, $fields = array ('uid', 'cn', 'displayname', 'labeleduri', 'mail', 'sn', 'telephonenumber', 'title', 'dn', 'ou'))
 	{
 		# Ensure the LDAP functionality exists in PHP
 		if (!function_exists ('ldap_connect')) {
@@ -160,7 +160,7 @@ class camUniData
 	
 	
 	# Function to get a user list formatted for search-as-you-type from lookup; see: http://www.ucs.cam.ac.uk/lookup/ws and the 'search' method at http://www.lookup.cam.ac.uk/doc/ws-javadocs/uk/ac/cam/ucs/ibis/methods/PersonMethods.html
-	public function lookupUsers ($term, $autocompleteFormat = false, $indexByUsername = false)
+	public static function lookupUsers ($term, $autocompleteFormat = false, $indexByUsername = false)
 	{
 		# Define the URL format, with %s placeholder
 		$urlFormat = 'https://anonymous:@www.lookup.cam.ac.uk/api/v1/person/search?attributes=displayName,registeredName,surname&limit=10&orderBy=identifier&format=json&query=%s';
