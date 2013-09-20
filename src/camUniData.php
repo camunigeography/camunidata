@@ -10,9 +10,9 @@ $result = camUniData::validCrsid ('abc01');
 echo $result;
 
 # Get lookup data - can accept an array or string
-$person = camUniData::getLookupData ('mvl22');
+$person = camUniData::getLookupData ('sqpr1');
 print_r ($person);
-$people = camUniData::getLookupData (array ('mb425', 'mvl22'));
+$people = camUniData::getLookupData (array ('xyz12', 'sqpr1'));
 print_r ($people);
 
 */
@@ -21,7 +21,7 @@ print_r ($people);
 /*
 	# Note for future
 	# If adding a regexp for matching a Cambridge University e-mail, bear in mind that the following formats listed below are also supported.
-	# See e-mail from Tony Finch <fanf2> dated Wed, 22 Jul 2009 20:26:37 +0100, Message-ID: <alpine.LSU.2.00.0907222009070.17246@hermes-2.csi.cam.ac.uk> describing this
+	# See e-mail from fanf2 dated Wed, 22 Jul 2009 20:26:37 +0100, Message-ID: <alpine.LSU.2.00.0907222009070.17246@hermes-2.csi.cam.ac.uk> describing this
 	crsid+detail@cam.ac.uk
 	crsid--detail@cam.ac.uk
 	crsid+detail@ucs.cam.ac.uk
@@ -31,7 +31,7 @@ print_r ($people);
 */
 
 
-# Version 1.2.0
+# Version 1.2.1
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -53,7 +53,7 @@ class camUniData
 		# Define the letter part
 		$letters = ($mustBeLowerCase ? 'a-z' : 'a-zA-Z');
 		
-		# Define the regexp - as defined by Tony Finch in Message-ID: <cEj*NC0dr@news.chiark.greenend.org.uk> to ucam.comp.misc on 060412
+		# Define the regexp - as defined by fanf2 in Message-ID: <cEj*NC0dr@news.chiark.greenend.org.uk> to ucam.comp.misc on 060412
 		# NB: ^([a-z]{2,5})([1-9])([0-9]{0,4})$ doesn't deal with the few people with simply four letter CRSIDs
 		$regexp = '^[' . $letters . '][' . $letters . '0-9]{1,7}$';
 		
@@ -208,6 +208,14 @@ class camUniData
 		
 		# Return the data
 		return $data;
+	}
+	
+	
+	# Autocomplete wrapper
+	public static function autocompleteNamesUrlSource ()
+	{
+		#!# Needs to be generalised
+		return 'http://intranet.geog.cam.ac.uk/contacts/database/data.html?source=localstaff,lookup';
 	}
 }
 
