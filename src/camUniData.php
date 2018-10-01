@@ -31,7 +31,7 @@ print_r ($people);
 */
 
 
-# Version 1.2.2
+# Version 1.3.0
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -98,14 +98,15 @@ class camUniData
 		if (!isSet ($searchString)) {return false;}
 		
 		# Obtain the data
-		$sr = ldap_search ($ds, 'ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk', $searchString, $fields);  
+		$sr = ldap_search ($ds, 'ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk', $searchString, $fields);
 		$data = ldap_get_entries ($ds, $sr);
 		
 		# Close the connection
 		ldap_close ($ds);
 		
 		# End by returning false if no info or if the number of results is greater than the number supplied
-		if (!$data || !$data['count'] || ($crsids && ($data['count'] > count ($crsids)))) {
+		$totalCrsids = (is_array ($crsids) ? count ($crsids) : 1);
+		if (!$data || !$data['count'] || ($crsids && ($data['count'] > $totalCrsids))) {
 			return false;
 		}
 		
@@ -215,7 +216,7 @@ class camUniData
 	public static function autocompleteNamesUrlSource ()
 	{
 		#!# Needs to be generalised
-		return 'http://intranet.geog.cam.ac.uk/contacts/database/data.html?source=localstaff,lookup';
+		return 'https://intranet.geog.cam.ac.uk/contacts/database/data.html?source=localstaff,lookup';
 	}
 }
 
