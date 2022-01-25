@@ -5,15 +5,19 @@
 # Load required libraries
 require_once ('camUniData.php');
 
-# Valid CRSID check
+# Valid CRSID check, checking (only) syntax
 $result = camUniData::validCrsid ('abc01');
 echo $result;
 
 # Get lookup data - can accept an array or string
-$person = camUniData::getLookupData ('sqpr1');
+$person = camUniData::lookupUser ('sqpr1');
 print_r ($person);
-$people = camUniData::getLookupData (array ('xyz12', 'sqpr1'));
+$people = camUniData::lookupUsers (array ('xyz12', 'sqpr1'));
 print_r ($people);
+
+# Documentation
+https://www.lookup.cam.ac.uk/doc/ws-doc/
+https://www.lookup.cam.ac.uk/openapi-3.0.json
 
 */
 
@@ -31,7 +35,7 @@ print_r ($people);
 */
 
 
-# Version 1.3.0
+# Version 2.0.0
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -62,106 +66,201 @@ class camUniData
 	}
 	
 	
-	# Function to get user details
-	public static function getLookupData ($crsids = false, $dumpData = false, $institution = false, $fields = array ('uid', 'cn', 'displayname', 'labeleduri', 'mail', 'sn', 'telephonenumber', 'title', 'dn', 'ou'))
+	# Function to get details of a user from Lookup
+	# E.g. https://www.lookup.cam.ac.uk/api/v1/person/crsid/spqr1?format=json&fetch=displayName,email,jdInstid,jdCollege,title,labeledURI,surname,universityPhone
+	public static function lookupUser ($crsid, $authUsername = 'anonymous', $authPassword = '')
 	{
-		# Ensure the LDAP functionality exists in PHP
-		if (!function_exists ('ldap_connect')) {
-			return NULL;
-		}
-		
-		# Connect to the lookup server
-		if (!$ds = ldap_connect ('ldap.lookup.cam.ac.uk')) {
-			return NULL;
-		}
-		
-		# Bind the connection
-		$r = ldap_bind ($ds);    // this is an "anonymous" bind, typically read-only access
-		
-		# Ensure all are lower-cased
-		if (is_array ($crsids)) {
-			foreach ($crsids as $key => $crsid) {
-				$crsids[$key] = strtolower ($crsid);
-			}
-		} else {
-			$crsids = strtolower ($crsids);
-		}
-		
-		# Define the search string, imploding an array if in array format
-		if ($crsids) {
-			$searchString = (!is_array ($crsids) ? "uid={$crsids}" : '(|(uid=' . implode (')(uid=', $crsids) . '))');
-		} else if ($institution) {
-			$searchString = "(&(instID={$institution})(objectClass=camAcUkPerson))";
-		}
-		
-		# End if no search string
-		if (!isSet ($searchString)) {return false;}
-		
-		# Obtain the data
-		$sr = ldap_search ($ds, 'ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk', $searchString, $fields);
-		$data = ldap_get_entries ($ds, $sr);
-		
-		# Close the connection
-		ldap_close ($ds);
-		
-		# End by returning false if no info or if the number of results is greater than the number supplied
-		$totalCrsids = (is_array ($crsids) ? count ($crsids) : 1);
-		if (!$data || !$data['count'] || ($crsids && ($data['count'] > $totalCrsids))) {
-			return false;
-		}
-		
-		# Dump data to screen if requested
-		if ($dumpData) {
-			require_once ('application.php');
-			application::dumpData ($data);
-		}
-		
-		# Arrange the data
-		foreach ($data as $index => $person) {
-			
-			# Skip the count index
-			if ($index === 'count') {continue;}
-			
-			# Get the CRSID first
-			$crsid = $person['uid'][0];
-			
-			# Arrange the data
-			$people[$crsid] = array (
-				'name' => (isSet ($person['displayname']) ? $person['displayname'][0] : (isSet ($person['cn']) ? $person['cn'][0] : false)),
-				'email' => (isSet ($person['mail']) ? $person['mail'][0] : "{$crsid}@cam.ac.uk"),
-				'department' => (isSet ($person['ou']) ? $person['ou'][0] : false),
-				'college' => ((isSet ($person['ou']) && isSet ($person['ou'][1])) ? $person['ou'][1] : false),
-				'title' => (isSet ($person['title']) ? $person['title'][0] : false),
-				'website' => (isSet ($person['labeleduri']) ? $person['labeleduri'][0] : false),
-				
-				'username' => $crsid,
-				'surname' => (isSet ($person['sn']) ? $person['sn'][0] : false),
-				'telephone' => (isSet ($person['telephonenumber']) ? $person['telephonenumber'][0] : false),
-				// 'dn' => (isSet ($person['dn']) ? $person['dn'][0] : false),
-			);
-			
-			# Trim
-			foreach ($people[$crsid] as $key => $value) {
-				$people[$crsid][$key] = trim ($value);
-			}
-			
-			# Compute the forename by chopping off the surname
-			if ($people[$crsid]['name'] && $people[$crsid]['surname']) {
-				$delimiter = '/';
-				$people[$crsid]['forename'] = trim (preg_replace ($delimiter . preg_quote ($people[$crsid]['surname'], $delimiter) . '$' . $delimiter, '', $people[$crsid]['name']));
-			}
-		}
-		
-		# Sort the list
-		ksort ($people);
-		
-		# Return the data, in the same format as supplied, i.e. string/array
-		return (($crsids && !is_array ($crsids)) ? $people[$crsids] : $people);
+		# Get the data
+		$method = '/person/crsid/' . $crsid;
+		return self::getSingular ($method, $authUsername, $authPassword);
 	}
 	
 	
-	# Function to get a user list formatted for search-as-you-type from lookup; see: http://www.ucs.cam.ac.uk/lookup/ws and the 'search' method at http://www.lookup.cam.ac.uk/doc/ws-javadocs/uk/ac/cam/ucs/ibis/methods/PersonMethods.html
-	public static function lookupUsers ($term, $autocompleteFormat = false, $indexByUsername = false)
+	# Function to get details of multiple users from Lookup; only active users will be returned
+	# NB Due to URL length limitations, the number of people that this method may fetch is typically limited to a few hundred; see: https://www.lookup.cam.ac.uk/openapi-3.0.json
+	# E.g. https://www.lookup.cam.ac.uk/api/v1/person/list?crsids=spqr1,xyz9999&format=json&fetch=displayName,email,jdInstid,jdCollege,title,labeledURI,surname,universityPhone
+	public static function lookupUsers ($crsids, $authUsername = 'anonymous', $authPassword = '')
+	{
+		# Get the data
+		$method = '/person/list?crsids=' . implode (',', $crsids);
+		return self::getMultiple ($method, $authUsername, $authPassword);
+	}
+	
+	
+	# Function to get details of users in a group from Lookup; only active users will be returned
+	# E.g. https://www.lookup.cam.ac.uk/api/v1/inst/BOTOLPH/members?format=json&fetch=displayName,email,jdInstid,jdCollege,title,labeledURI,surname,universityPhone
+	public static function lookupUsersInGroup ($group, $authUsername = 'anonymous', $authPassword = '')
+	{
+		# Get the data
+		$method = '/inst/' . $group . '/members';
+		return self::getMultiple ($method, $authUsername, $authPassword);
+	}
+	
+	
+	# Function to get details of institutions from Lookup
+	# E.g. https://www.lookup.cam.ac.uk/api/v1/inst/list?instids=BOTOLPH,PORTERHOUSE&format=json
+	public static function lookupInstitutions ($institutionIds, $authUsername = 'anonymous', $authPassword = '')
+	{
+		# Assemble the URL
+		$method = '/inst/list?instids=' . implode (',', $institutionIds);
+		$url = "https://{$authUsername}:{$authPassword}@www.lookup.cam.ac.uk/api/v1" . $method . (substr_count ($method, '?') ? '&' : '?') . "&format=json";
+		
+		# Get the data
+		if (!$json = file_get_contents ($url)) {return array ();}
+		$json = json_decode ($json, true);
+		
+		# End if no match
+		if (!isSet ($json['result']['institutions'])) {return array ();}
+		
+		# Format as key/value pairs
+		$institutions = array ();
+		foreach ($json['result']['institutions'] as $institution) {
+			$id = $institution['instid'];
+			$institutions[$id] = $institution['name'];
+		}
+		
+		# Return the institutions
+		return $institutions;
+	}
+	
+	
+	# Helper function to get singular item; see: https://www.lookup.cam.ac.uk/doc/ws-doc/ and attributes at https://www.lookup.cam.ac.uk/api/v1/person/all-attr-schemes
+	/* private */ public static function getSingular ($method, $authUsername, $authPassword)
+	{
+		# Assemble the URL
+		$attributes = 'displayName,email,jdInstid,jdCollege,title,labeledURI,surname,universityPhone';
+		$url = "https://{$authUsername}:{$authPassword}@www.lookup.cam.ac.uk/api/v1" . $method . (substr_count ($method, '?') ? '&' : '?') . "fetch={$attributes}&format=json";
+		
+		# Get the data
+		if (!$json = file_get_contents ($url)) {return array ();}
+		$json = json_decode ($json, true);
+		
+		# End if no match
+		if (!isSet ($json['result']['person'])) {return array ();}
+		
+		# Format the user
+		$user = self::formatUser ($json['result']['person']);
+		
+		# Substitute the institution IDs for institution names
+		$users = self::substituteInstitutionIds (array ($user['username'] => $user), $authUsername, $authPassword);
+		$user = $users[$user['username']];
+		
+		# Return the user
+		return $user;
+	}
+	
+	
+	# Function to get details of users from Lookup; see: https://www.lookup.cam.ac.uk/doc/ws-doc/ and attributes at https://www.lookup.cam.ac.uk/api/v1/person/all-attr-schemes
+	public static function getMultiple ($method, $authUsername = 'anonymous', $authPassword = '')
+	{
+		# Assemble the URL
+		$attributes = 'displayName,email,jdInstid,jdCollege,title,labeledURI,surname,universityPhone';
+		$url = "https://{$authUsername}:{$authPassword}@www.lookup.cam.ac.uk/api/v1" . $method . (substr_count ($method, '?') ? '&' : '?') . "fetch={$attributes}&format=json";
+		
+		# Get the data
+		if (!$json = file_get_contents ($url)) {return array ();}
+		$json = json_decode ($json, true);
+		
+		# End if no match
+		if (!isSet ($json['result']['people'])) {return array ();}
+		
+		# Format the users, skipping inactive users
+		$users = array ();
+		foreach ($json['result']['people'] as $person) {
+			if ($person['cancelled']) {continue;}		// As per original LDAP implementation - may wish to make this optional in future
+			$username = $person['identifier']['value'];
+			$users[$username] = self::formatUser ($person);
+		}
+		
+		# Substitute the institution IDs for institution names
+		$users = self::substituteInstitutionIds ($users, $authUsername, $authPassword);
+		
+		# Return the users
+		return $users;
+	}
+	
+	
+	# Helper function to format a person from the data structure
+	/* private */ public static function formatUser ($person)
+	{
+		# Rearrange the attributes as key/value pairs, with only the first in any group used
+		$attributes = array ();
+		foreach ($person['attributes'] as $attribute) {
+			$key = $attribute['scheme'];
+			if (!array_key_exists ($key, $attributes)) {	// Use only the first to appear, e.g. labeledURI may appear more than once
+				$attributes[$key] = $attribute['value'];
+			}
+		}
+		
+		# Arrange the data
+		$user = array (
+			'username'		=> $person['identifier']['value'],
+			'name'			=> $attributes['displayName'],
+			'email'			=> (isSet ($attributes['email']) ? $attributes['email'] : $person['identifier']['value'] . '@cam.ac.uk'),
+			'department'	=> (isSet ($attributes['jdInstid']) ? $attributes['jdInstid'] : false),
+			'college'		=> (isSet ($attributes['jdCollege']) ? $attributes['jdCollege'] : false),
+			'title'			=> (isSet ($attributes['title']) ? $attributes['title'] : false),		// Post title, not honorific
+			'website'		=> (isSet ($attributes['labeledURI']) ? $attributes['labeledURI'] : false),
+			'surname'		=> (isSet ($attributes['surname']) ? $attributes['surname'] : false),
+			'telephone'		=> (isSet ($attributes['universityPhone']) ? $attributes['universityPhone'] : false),
+		);
+		
+		# Trim values
+		foreach ($user as $key => $value) {
+			$user[$key] = trim ($value);
+		}
+		
+		# Compute the forename by chopping off the surname
+		$user['forename'] = false;
+		if ($user['name'] && $user['surname']) {
+			$delimiter = '/';
+			$user['forename'] = trim (preg_replace ($delimiter . preg_quote ($user['surname'], $delimiter) . '$' . $delimiter, '', $user['name']));
+		}
+		
+		# Return the user
+		return $user;
+	}
+	
+	
+	# Function to substitute the institution IDs for institution names; this is done on a batch basis to avoid multiple calls to the institutions API
+	/* private */ public static function substituteInstitutionIds ($users, $authUsername, $authPassword)
+	{
+		# Get all the institution IDs in the dataset
+		$institutionIds = array ();
+		foreach ($users as $username => $user) {
+			if (isSet ($user['department']) && strlen ($user['department'])) {
+				$institutionIds[] = $user['department'];
+			}
+			if (isSet ($user['college']) && strlen ($user['college'])) {
+				$institutionIds[] = $user['college'];
+			}
+		}
+		array_unique ($institutionIds);
+		
+		# Get the institutions data
+		$institutions = self::lookupInstitutions ($institutionIds, $authUsername, $authPassword);
+		
+		# Perform the substitutions
+		foreach ($users as $username => $user) {
+			if (isSet ($user['department']) && strlen ($user['department'])) {
+				if (isSet ($institutions[$user['department']])) {
+					$users[$username]['department'] = $institutions[$user['department']];
+				}
+			}
+			if (isSet ($user['college']) && strlen ($user['college'])) {
+				if (isSet ($institutions[$user['college']])) {
+					$users[$username]['college'] = $institutions[$user['college']];
+				}
+			}
+		}
+		
+		# Return the modified data
+		return $users;
+	}
+	
+	
+	# Function to get a user list formatted for search-as-you-type from lookup; see: https://www.lookup.cam.ac.uk/doc/ws-doc/ and the 'search' method at https://www.lookup.cam.ac.uk/doc/ws-javadocs/uk/ac/cam/ucs/ibis/methods/PersonMethods.html
+	public static function lookupSearch ($term, $autocompleteFormat = false, $indexByUsername = false)
 	{
 		# Define the URL format, with %s placeholder
 		$urlFormat = 'https://anonymous:@www.lookup.cam.ac.uk/api/v1/person/search?attributes=displayName,registeredName,surname&limit=10&orderBy=identifier&format=json&query=%s';
