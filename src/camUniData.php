@@ -35,7 +35,7 @@ https://www.lookup.cam.ac.uk/openapi-3.0.json
 */
 
 
-# Version 2.0.0
+# Version 2.0.1
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
@@ -106,7 +106,8 @@ class camUniData
 		$url = "https://{$authUsername}:{$authPassword}@www.lookup.cam.ac.uk/api/v1" . $method . (substr_count ($method, '?') ? '&' : '?') . "&format=json";
 		
 		# Get the data
-		if (!$json = file_get_contents ($url)) {return array ();}
+		$context = stream_context_create (array ('http' => array ('timeout' => 2)));
+		if (!$json = file_get_contents ($url, false, $context)) {return array ();}
 		$json = json_decode ($json, true);
 		
 		# End if no match
@@ -132,7 +133,8 @@ class camUniData
 		$url = "https://{$authUsername}:{$authPassword}@www.lookup.cam.ac.uk/api/v1" . $method . (substr_count ($method, '?') ? '&' : '?') . "fetch={$attributes}&format=json";
 		
 		# Get the data
-		if (!$json = file_get_contents ($url)) {return array ();}
+		$context = stream_context_create (array ('http' => array ('timeout' => 2)));
+		if (!$json = file_get_contents ($url, false, $context)) {return array ();}
 		$json = json_decode ($json, true);
 		
 		# End if no match
@@ -158,7 +160,8 @@ class camUniData
 		$url = "https://{$authUsername}:{$authPassword}@www.lookup.cam.ac.uk/api/v1" . $method . (substr_count ($method, '?') ? '&' : '?') . "fetch={$attributes}&format=json";
 		
 		# Get the data
-		if (!$json = file_get_contents ($url)) {return array ();}
+		$context = stream_context_create (array ('http' => array ('timeout' => 2)));
+		if (!$json = file_get_contents ($url, false, $context)) {return array ();}
 		$json = json_decode ($json, true);
 		
 		# End if no match
@@ -267,7 +270,8 @@ class camUniData
 		$url = sprintf ($urlFormat, $term);
 		
 		# Get the data
-		if (!$json = file_get_contents ($url)) {return array ();}
+		$context = stream_context_create (array ('http' => array ('timeout' => 2)));
+		if (!$json = file_get_contents ($url, false, $context)) {return array ();}
 		
 		# Decode the JSON
 		$json = json_decode ($json, true);
