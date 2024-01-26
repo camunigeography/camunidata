@@ -2,9 +2,6 @@
 
 /* Example usage:
 
-# Load required libraries
-require_once ('camUniData.php');
-
 # Valid CRSID check, checking (only) syntax
 $result = camUniData::validCrsid ('abc01');
 echo $result;
@@ -34,8 +31,6 @@ https://www.lookup.cam.ac.uk/openapi-3.0.json
 	forename.surname--detail@ucs.cam.ac.uk
 */
 
-
-# Version 2.0.1
 
 # Class containing Cambridge University -specific data-orientated functions
 class camUniData
